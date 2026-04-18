@@ -146,6 +146,11 @@ class ELR_Admin {
 			$type = 301;
 		}
 
+		$conflict = self::find_wp_conflict( $slug );
+		if ( '' !== $conflict ) {
+			self::redirect_with_notice( 'error', $conflict );
+		}
+
 		$data = array(
 			'slug'          => $slug,
 			'title'         => $title,
@@ -272,6 +277,67 @@ class ELR_Admin {
 		$slug = trim( $slug, '/' );
 		$slug = preg_replace( '#[^a-z0-9\-_]+#', '', $slug );
 		return (string) $slug;
+	}
+
+	protected static function find_wp_conflict( $slug ) {
+		$slug = (string) $slug;
+		if ( '' === $slug ) {
+			return '';
+		}
+
+		$reserved = array(
+			'wp-admin', 'wp-login.php', 'wp-content', 'wp-includes', 'wp-json',
+			'xmlrpc.php', 'feed', 'rss', 'rss2', 'atom', 'rdf', 'comments',
+			'search', 'author', 'date', 'tag', 'category', 'page', 'paged',
+			'trackback', 'embed', 'robots.txt', 'sitemap.xml', 'wp-sitemap.xml',
+			'favicon.ico', 'wlwmanifest.xml',
+		);
+		if ( in_array( strtolower( $slug ), $reserved, true ) ) {
+			return sprintf(
+				/* translators: %s: the conflicting slug. */
+				__( 'The slug "%s" is reserved by WordPress and cannot be used.', 'elegance-links-redirect' ),
+				$slug
+			);
+		}
+
+		$post_types = get_post_types( array( 'public' => true ), 'names' );
+		if ( ! empty( $post_types ) ) {
+			$post = get_page_by_path( $slug, OBJECT, array_values( $post_types ) );
+			if ( $post ) {
+				return sprintf(
+					/* translators: 1: slug, 2: post type, 3: post title. */
+					__( 'The slug "%1$s" conflicts with an existing %2$s ("%3$s").', 'elegance-links-redirect' ),
+					$slug,
+					$post->post_type,
+					$post->post_title
+				);
+			}
+		}
+
+		foreach ( get_taxonomies( array( 'public' => true ), 'names' ) as $taxonomy ) {
+			$term = get_term_by( 'slug', $slug, $taxonomy );
+			if ( $term && ! is_wp_error( $term ) ) {
+				return sprintf(
+					/* translators: 1: slug, 2: taxonomy, 3: term name. */
+					__( 'The slug "%1$s" conflicts with an existing %2$s term ("%3$s").', 'elegance-links-redirect' ),
+					$slug,
+					$taxonomy,
+					$term->name
+				);
+			}
+		}
+
+		$user = get_user_by( 'slug', $slug );
+		if ( $user ) {
+			return sprintf(
+				/* translators: 1: slug, 2: display name. */
+				__( 'The slug "%1$s" conflicts with an existing author URL ("%2$s").', 'elegance-links-redirect' ),
+				$slug,
+				$user->display_name
+			);
+		}
+
+		return '';
 	}
 
 	protected static function redirect_with_notice( $type, $message, $extra = array() ) {
