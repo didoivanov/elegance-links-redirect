@@ -33,4 +33,6 @@ require_once ELR_PLUGIN_DIR . 'includes/class-elr-plugin.php';
 register_activation_hook( __FILE__, array( 'ELR_Plugin', 'on_activate' ) );
 register_deactivation_hook( __FILE__, array( 'ELR_Plugin', 'on_deactivate' ) );
 
-add_action( 'plugins_loaded', array( 'ELR_Plugin', 'boot' ) );
+if ( ! ( isset( $GLOBALS['pagenow'] ) && 'wp-login.php' === $GLOBALS['pagenow'] ) ) {
+	add_action( 'plugins_loaded', array( 'ELR_Plugin', 'boot' ) );
+}
