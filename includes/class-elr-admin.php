@@ -179,6 +179,7 @@ class ELR_Admin {
 			$id = (int) $wpdb->insert_id;
 		}
 
+		ELR_Redirect::rebuild_active_slugs();
 		update_option( 'elr_flush_rewrite', 1 );
 		self::redirect_with_notice( 'success', __( 'Link saved.', 'elegance-links-redirect' ), array( 'page' => 'elr-link-edit', 'link_id' => $id ) );
 	}
@@ -196,6 +197,7 @@ class ELR_Admin {
 			$wpdb->delete( ELR_Database::rules_table(), array( 'link_id' => $id ) );
 			$wpdb->delete( ELR_Database::clicks_table(), array( 'link_id' => $id ) );
 		}
+		ELR_Redirect::rebuild_active_slugs();
 		update_option( 'elr_flush_rewrite', 1 );
 		self::redirect_with_notice( 'success', __( 'Link deleted.', 'elegance-links-redirect' ) );
 	}

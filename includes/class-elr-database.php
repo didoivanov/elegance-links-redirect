@@ -99,6 +99,10 @@ class ELR_Database {
 		dbDelta( $sql_rules );
 		dbDelta( $sql_clicks );
 
+		if ( class_exists( 'ELR_Redirect' ) ) {
+			ELR_Redirect::rebuild_active_slugs();
+		}
+
 		update_option( 'elr_db_version', ELR_VERSION );
 		update_option( 'elr_flush_rewrite', 1 );
 	}

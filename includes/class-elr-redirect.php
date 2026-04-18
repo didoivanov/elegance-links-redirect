@@ -5,11 +5,51 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class ELR_Redirect {
 
-	const QUERY_VAR = 'elr_slug';
+	const QUERY_VAR         = 'elr_slug';
+	const ACTIVE_SLUGS_OPT  = 'elr_active_slugs';
 
 	public static function register_rewrites() {
 		add_rewrite_tag( '%' . self::QUERY_VAR . '%', '([^&/]+)' );
-		add_rewrite_rule( '^([^/]+)/?$', 'index.php?' . self::QUERY_VAR . '=$matches[1]', 'top' );
+
+		$slugs = self::get_active_slugs();
+		foreach ( $slugs as $slug ) {
+			$slug = (string) $slug;
+			if ( '' === $slug ) {
+				continue;
+			}
+			$pattern = '^' . preg_quote( $slug, '#' ) . '/?$';
+			add_rewrite_rule(
+				$pattern,
+				'index.php?' . self::QUERY_VAR . '=' . rawurlencode( $slug ),
+				'top'
+			);
+		}
+	}
+
+	public static function get_active_slugs() {
+		$slugs = get_option( self::ACTIVE_SLUGS_OPT, array() );
+		if ( ! is_array( $slugs ) ) {
+			return array();
+		}
+		return array_values( array_filter( array_map( 'strval', $slugs ) ) );
+	}
+
+	public static function rebuild_active_slugs() {
+		global $wpdb;
+		$rows = $wpdb->get_col(
+			'SELECT slug FROM ' . ELR_Database::links_table() . ' WHERE is_active = 1'
+		);
+		$slugs = array();
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$row = (string) $row;
+				if ( '' !== $row ) {
+					$slugs[] = $row;
+				}
+			}
+		}
+		update_option( self::ACTIVE_SLUGS_OPT, $slugs, false );
+		return $slugs;
 	}
 
 	public static function query_vars( $vars ) {
