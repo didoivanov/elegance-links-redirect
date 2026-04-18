@@ -6,14 +6,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 class ELR_Plugin {
 
 	public static function boot() {
-		load_plugin_textdomain( 'elegance-links-redirect', false, dirname( plugin_basename( ELR_PLUGIN_FILE ) ) . '/languages' );
-
 		add_action( 'init', array( 'ELR_Redirect', 'register_rewrites' ) );
 		add_filter( 'query_vars', array( 'ELR_Redirect', 'query_vars' ) );
 		add_action( 'template_redirect', array( 'ELR_Redirect', 'maybe_handle' ), 0 );
 
 		add_action( 'init', array( __CLASS__, 'maybe_flush_rewrites' ), 20 );
-		add_action( 'plugins_loaded', array( 'ELR_Database', 'maybe_upgrade_current_site' ), 5 );
+		add_action( 'admin_init', array( 'ELR_Database', 'maybe_upgrade_current_site' ) );
 
 		if ( is_multisite() ) {
 			add_action( 'wp_initialize_site', array( 'ELR_Database', 'on_new_site' ), 20 );
