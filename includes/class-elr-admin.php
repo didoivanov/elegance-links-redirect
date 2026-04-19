@@ -51,7 +51,6 @@ class ELR_Admin {
 			'elr-link-stats',
 			array( __CLASS__, 'render_stats_page' )
 		);
-		remove_submenu_page( self::MENU_SLUG, 'elr-link-stats' );
 	}
 
 	public static function enqueue_assets( $hook ) {
@@ -64,6 +63,17 @@ class ELR_Admin {
 			array(),
 			ELR_VERSION
 		);
+
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		if ( 'elr-link-edit' === $page ) {
+			wp_enqueue_script(
+				'elr-link-form',
+				ELR_PLUGIN_URL . 'admin/assets/js/link-form.js',
+				array( 'jquery', 'jquery-ui-autocomplete' ),
+				ELR_VERSION,
+				true
+			);
+		}
 	}
 
 	public static function render_list_page() {
@@ -81,9 +91,11 @@ class ELR_Admin {
 			return;
 		}
 		global $wpdb;
-		$link_id = isset( $_GET['link_id'] ) ? (int) $_GET['link_id'] : 0;
-		$link    = null;
-		$rules   = array();
+		$link_id     = isset( $_GET['link_id'] ) ? (int) $_GET['link_id'] : 0;
+		$edit_rule   = isset( $_GET['edit_rule'] ) ? (int) $_GET['edit_rule'] : 0;
+		$link        = null;
+		$rules       = array();
+		$editing_rule = null;
 		if ( $link_id > 0 ) {
 			$link = $wpdb->get_row(
 				$wpdb->prepare( 'SELECT * FROM ' . ELR_Database::links_table() . ' WHERE id = %d', $link_id )
@@ -95,6 +107,14 @@ class ELR_Admin {
 						$link_id
 					)
 				);
+				if ( $edit_rule > 0 ) {
+					foreach ( $rules as $rule ) {
+						if ( (int) $rule->id === $edit_rule ) {
+							$editing_rule = $rule;
+							break;
+						}
+					}
+				}
 			}
 		}
 		$home = trailingslashit( home_url() );
@@ -107,16 +127,24 @@ class ELR_Admin {
 		}
 		global $wpdb;
 		$link_id = isset( $_GET['link_id'] ) ? (int) $_GET['link_id'] : 0;
-		$link    = $wpdb->get_row(
-			$wpdb->prepare( 'SELECT * FROM ' . ELR_Database::links_table() . ' WHERE id = %d', $link_id )
-		);
-		if ( ! $link ) {
-			echo '<div class="wrap"><h1>' . esc_html__( 'Link not found', 'elegance-links-redirect' ) . '</h1></div>';
-			return;
-		}
-		$clicks  = ELR_Tracker::recent_for_link( $link_id, 100 );
-		$summary = ELR_Tracker::summary_for_link( $link_id );
 		$home    = trailingslashit( home_url() );
+		$link    = null;
+		$clicks  = array();
+		$summary = array( 'countries' => array(), 'devices' => array(), 'browsers' => array() );
+		$links   = array();
+
+		if ( $link_id > 0 ) {
+			$link = $wpdb->get_row(
+				$wpdb->prepare( 'SELECT * FROM ' . ELR_Database::links_table() . ' WHERE id = %d', $link_id )
+			);
+		}
+
+		if ( $link ) {
+			$clicks  = ELR_Tracker::recent_for_link( $link_id, 100 );
+			$summary = ELR_Tracker::summary_for_link( $link_id );
+		} else {
+			$links = $wpdb->get_results( 'SELECT * FROM ' . ELR_Database::links_table() . ' ORDER BY hits DESC, created_at DESC' );
+		}
 		include ELR_PLUGIN_DIR . 'admin/views/stats.php';
 	}
 

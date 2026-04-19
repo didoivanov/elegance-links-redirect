@@ -2,10 +2,45 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-/** @var object $link */
+/** @var object|null $link */
 /** @var array $clicks */
 /** @var array $summary */
 /** @var string $home */
+/** @var array $links */
+
+if ( empty( $link ) ) :
+	?>
+	<div class="wrap elr-wrap">
+		<h1><?php esc_html_e( 'Link Stats', 'elegance-links-redirect' ); ?></h1>
+		<p><?php esc_html_e( 'Select a link to view its stats.', 'elegance-links-redirect' ); ?></p>
+		<table class="wp-list-table widefat fixed striped">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Slug', 'elegance-links-redirect' ); ?></th>
+					<th><?php esc_html_e( 'Title', 'elegance-links-redirect' ); ?></th>
+					<th><?php esc_html_e( 'Hits', 'elegance-links-redirect' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'elegance-links-redirect' ); ?></th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+			<?php if ( empty( $links ) ) : ?>
+				<tr><td colspan="5"><?php esc_html_e( 'No links yet.', 'elegance-links-redirect' ); ?></td></tr>
+			<?php else : foreach ( $links as $row ) : ?>
+				<tr>
+					<td><code><?php echo esc_html( $home . $row->slug ); ?></code></td>
+					<td><?php echo esc_html( $row->title ); ?></td>
+					<td><?php echo (int) $row->hits; ?></td>
+					<td><?php echo $row->is_active ? esc_html__( 'Active', 'elegance-links-redirect' ) : esc_html__( 'Disabled', 'elegance-links-redirect' ); ?></td>
+					<td><a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=elr-link-stats&link_id=' . (int) $row->id ) ); ?>"><?php esc_html_e( 'View Stats', 'elegance-links-redirect' ); ?></a></td>
+				</tr>
+			<?php endforeach; endif; ?>
+			</tbody>
+		</table>
+	</div>
+	<?php
+	return;
+endif;
 ?>
 <div class="wrap elr-wrap">
 	<h1><?php printf( esc_html__( 'Stats: %s', 'elegance-links-redirect' ), esc_html( $link->title ? $link->title : $link->slug ) ); ?></h1>

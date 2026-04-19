@@ -28,3 +28,41 @@
 	letter-spacing: 0.04em;
 	color: #3c434a;
 }
+.elr-row-editing {
+	background: #fff8e1 !important;
+}
+.ui-autocomplete {
+	list-style: none;
+	margin: 0;
+	padding: 4px 0;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	max-height: 240px;
+	overflow-y: auto;
+	z-index: 100000;
+	font-size: 13px;
+}
+.ui-autocomplete .ui-menu-item {
+	list-style: none;
+	margin: 0;
+}
+.ui-autocomplete .ui-menu-item-wrapper {
+	display: block;
+	padding: 6px 12px;
+	cursor: pointer;
+	color: #1d2327;
+	text-decoration: none;
+}
+.ui-autocomplete .ui-menu-item-wrapper.ui-state-active,
+.ui-autocomplete .ui-menu-item-wrapper:hover {
+	background: #2271b1;
+	color: #fff;
+}
+.ui-helper-hidden-accessible {
+	position: absolute !important;
+	clip: rect(1px, 1px, 1px, 1px);
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
