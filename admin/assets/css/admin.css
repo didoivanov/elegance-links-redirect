@@ -202,3 +202,66 @@
 	background: #e9f5ea;
 	color: #1f7d43;
 }
+.elr-api-endpoint-card {
+	margin: 18px 0;
+	padding: 18px 20px;
+	background: #f0f6fc;
+	border: 1px solid #c5d9ea;
+	border-left: 4px solid #2271b1;
+	border-radius: 4px;
+	max-width: 900px;
+}
+.elr-api-endpoint-card--disabled {
+	background: #f6f7f7;
+	border-color: #dcdcde;
+	border-left-color: #a7aaad;
+}
+.elr-api-endpoint-label {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: #2271b1;
+	margin-bottom: 8px;
+}
+.elr-api-endpoint-card--disabled .elr-api-endpoint-label {
+	color: #646970;
+}
+.elr-api-endpoint-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+.elr-api-endpoint-input {
+	flex: 1 1 420px;
+	min-width: 320px;
+	font-family: Menlo, Consolas, monospace;
+	font-size: 13px;
+	padding: 8px 10px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 3px;
+}
+.elr-api-copy .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+	line-height: 24px;
+	margin-right: 2px;
+}
+.elr-api-endpoint-hint {
+	margin: 10px 0 0;
+	color: #646970;
+	font-size: 12px;
+}
+.elr-api-sample {
+	background: #1d2327;
+	color: #f6f7f7;
+	padding: 14px 16px;
+	border-radius: 4px;
+	max-width: 900px;
+	overflow-x: auto;
+	font-size: 12px;
+	line-height: 1.55;
+}

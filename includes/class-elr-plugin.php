@@ -18,6 +18,8 @@ class ELR_Plugin {
 			add_action( 'wp_uninitialize_site', array( 'ELR_Database', 'on_delete_site' ), 1 );
 		}
 
+		ELR_API::boot();
+
 		if ( is_admin() ) {
 			ELR_Admin::boot();
 			ELR_Updater::boot();

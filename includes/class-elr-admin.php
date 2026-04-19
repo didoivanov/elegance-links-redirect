@@ -15,6 +15,7 @@ class ELR_Admin {
 		add_action( 'admin_post_elr_bulk_links', array( __CLASS__, 'handle_bulk_links' ) );
 		add_action( 'admin_post_elr_save_rule', array( __CLASS__, 'handle_save_rule' ) );
 		add_action( 'admin_post_elr_delete_rule', array( __CLASS__, 'handle_delete_rule' ) );
+		add_action( 'admin_post_elr_save_api', array( __CLASS__, 'handle_save_api' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 	}
 
@@ -51,6 +52,14 @@ class ELR_Admin {
 			self::CAPABILITY,
 			'elr-link-stats',
 			array( __CLASS__, 'render_stats_page' )
+		);
+		add_submenu_page(
+			self::MENU_SLUG,
+			__( 'API', 'elegance-links-redirect' ),
+			__( 'API', 'elegance-links-redirect' ),
+			self::CAPABILITY,
+			'elr-api',
+			array( __CLASS__, 'render_api_page' )
 		);
 	}
 
@@ -377,6 +386,45 @@ class ELR_Admin {
 			$wpdb->delete( ELR_Database::rules_table(), array( 'id' => $rule_id ) );
 		}
 		self::redirect_with_notice( 'success', __( 'Rule deleted.', 'elegance-links-redirect' ), array( 'page' => 'elr-link-edit', 'link_id' => $link_id ) );
+	}
+
+	public static function render_api_page() {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			return;
+		}
+		$enabled = ELR_API::is_enabled();
+		$token   = ELR_API::get_token();
+		$url     = ELR_API::api_url();
+		include ELR_PLUGIN_DIR . 'admin/views/api-settings.php';
+	}
+
+	public static function handle_save_api() {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'elegance-links-redirect' ) );
+		}
+		check_admin_referer( 'elr_save_api' );
+
+		$enable    = ! empty( $_POST['api_enabled'] );
+		$action    = isset( $_POST['token_action'] ) ? sanitize_key( wp_unslash( $_POST['token_action'] ) ) : '';
+		$message   = __( 'API settings saved.', 'elegance-links-redirect' );
+
+		if ( $enable ) {
+			if ( 'regenerate' === $action || '' === ELR_API::get_token() ) {
+				ELR_API::generate_token();
+				$message = __( 'API enabled. New token generated.', 'elegance-links-redirect' );
+			}
+			ELR_API::set_enabled( true );
+		} else {
+			ELR_API::set_enabled( false );
+			if ( 'revoke' === $action ) {
+				ELR_API::revoke_token();
+				$message = __( 'API disabled and token revoked.', 'elegance-links-redirect' );
+			} else {
+				$message = __( 'API disabled.', 'elegance-links-redirect' );
+			}
+		}
+
+		self::redirect_with_notice( 'success', $message, array( 'page' => 'elr-api' ) );
 	}
 
 	protected static function sanitize_slug( $slug ) {
