@@ -12,7 +12,7 @@ $link_id   = $is_edit ? (int) $link->id : 0;
 $slug      = $is_edit ? (string) $link->slug : '';
 $title     = $is_edit ? (string) $link->title : '';
 $target    = $is_edit ? (string) $link->target_url : '';
-$type      = $is_edit ? (int) $link->redirect_type : 301;
+$type      = $is_edit ? (int) $link->redirect_type : 307;
 $nofollow  = $is_edit ? (int) $link->nofollow : 0;
 $track     = $is_edit ? (int) $link->track_clicks : 1;
 $is_active = $is_edit ? (int) $link->is_active : 1;
@@ -23,7 +23,7 @@ $rule_id_val       = $rule_is_edit ? (int) $editing_rule->id : 0;
 $rule_type_val     = $rule_is_edit ? (string) $editing_rule->rule_type : 'country';
 $rule_match_val    = $rule_is_edit ? (string) $editing_rule->match_value : '';
 $rule_target_val   = $rule_is_edit ? (string) $editing_rule->target_url : '';
-$rule_code_val     = $rule_is_edit ? (int) $editing_rule->redirect_type : 301;
+$rule_code_val     = $rule_is_edit ? (int) $editing_rule->redirect_type : 307;
 $rule_priority_val = $rule_is_edit ? (int) $editing_rule->priority : 10;
 $rule_active_val   = $rule_is_edit ? (int) $editing_rule->is_active : 1;
 ?>

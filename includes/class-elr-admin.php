@@ -97,7 +97,8 @@ class ELR_Admin {
 				)
 			);
 		}
-		$home = trailingslashit( home_url() );
+		$home        = trailingslashit( home_url() );
+		$rule_counts = ELR_Tracker::active_rule_counts_by_link();
 		include ELR_PLUGIN_DIR . 'admin/views/links-list.php';
 	}
 
@@ -157,13 +158,36 @@ class ELR_Admin {
 			'country'       => isset( $_GET['country'] ) ? sanitize_text_field( wp_unslash( $_GET['country'] ) ) : '',
 			'q'             => isset( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q'] ) ) : '',
 			'with_referrer' => ! empty( $_GET['with_referrer'] ) ? 1 : 0,
+			'rule'          => isset( $_GET['rule'] ) ? sanitize_text_field( wp_unslash( $_GET['rule'] ) ) : '',
 		);
 
-		$daily     = ELR_Tracker::daily_counts( $filters, 30 );
-		$clicks    = ELR_Tracker::query_clicks( $filters, 100 );
-		$total     = ELR_Tracker::count_clicks( $filters );
-		$countries = ELR_Tracker::distinct_countries( array( 'link_id' => $filters['link_id'] ) );
-		$summary   = ELR_Tracker::summary_filtered( $filters );
+		$daily        = ELR_Tracker::daily_counts( $filters, 30 );
+		$clicks       = ELR_Tracker::query_clicks( $filters, 100 );
+		$total        = ELR_Tracker::count_clicks( $filters );
+		$countries    = ELR_Tracker::distinct_countries( array( 'link_id' => $filters['link_id'] ) );
+		$summary      = ELR_Tracker::summary_filtered( $filters );
+		$by_rule      = ELR_Tracker::breakdown_by_rule( $filters );
+		$link_rules   = array();
+		$rules_lookup = array();
+
+		if ( $link ) {
+			$link_rules = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT * FROM ' . ELR_Database::rules_table() . ' WHERE link_id = %d ORDER BY priority ASC, id ASC',
+					(int) $link->id
+				)
+			);
+		}
+
+		$referenced_rule_ids = array();
+		foreach ( (array) $clicks as $click ) {
+			if ( ! empty( $click->rule_id ) ) {
+				$referenced_rule_ids[] = (int) $click->rule_id;
+			}
+		}
+		if ( ! empty( $referenced_rule_ids ) ) {
+			$rules_lookup = ELR_Tracker::rules_for_ids( $referenced_rule_ids );
+		}
 
 		if ( ! $link ) {
 			$links = $wpdb->get_results( 'SELECT * FROM ' . ELR_Database::links_table() . ' ORDER BY hits DESC, created_at DESC' );
@@ -183,7 +207,7 @@ class ELR_Admin {
 		$slug       = self::sanitize_slug( $slug_raw );
 		$title      = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
 		$target     = isset( $_POST['target_url'] ) ? esc_url_raw( wp_unslash( $_POST['target_url'] ) ) : '';
-		$type       = isset( $_POST['redirect_type'] ) ? (int) $_POST['redirect_type'] : 301;
+		$type       = isset( $_POST['redirect_type'] ) ? (int) $_POST['redirect_type'] : 307;
 		$nofollow   = isset( $_POST['nofollow'] ) ? 1 : 0;
 		$track      = isset( $_POST['track_clicks'] ) ? 1 : 0;
 		$is_active  = isset( $_POST['is_active'] ) ? 1 : 0;
@@ -195,7 +219,7 @@ class ELR_Admin {
 			self::redirect_with_notice( 'error', __( 'A valid target URL is required.', 'elegance-links-redirect' ) );
 		}
 		if ( ! in_array( $type, array( 301, 302, 303, 307, 308 ), true ) ) {
-			$type = 301;
+			$type = 307;
 		}
 
 		$conflict = self::find_wp_conflict( $slug );
@@ -295,7 +319,7 @@ class ELR_Admin {
 		$rule_type  = isset( $_POST['rule_type'] ) ? sanitize_key( wp_unslash( $_POST['rule_type'] ) ) : '';
 		$match      = isset( $_POST['match_value'] ) ? sanitize_text_field( wp_unslash( $_POST['match_value'] ) ) : '';
 		$target     = isset( $_POST['target_url'] ) ? esc_url_raw( wp_unslash( $_POST['target_url'] ) ) : '';
-		$type       = isset( $_POST['redirect_type'] ) ? (int) $_POST['redirect_type'] : 301;
+		$type       = isset( $_POST['redirect_type'] ) ? (int) $_POST['redirect_type'] : 307;
 		$priority   = isset( $_POST['priority'] ) ? (int) $_POST['priority'] : 10;
 		$is_active  = isset( $_POST['is_active'] ) ? 1 : 0;
 
@@ -306,7 +330,7 @@ class ELR_Admin {
 			self::redirect_with_notice( 'error', __( 'Rule requires a match value and a valid target URL.', 'elegance-links-redirect' ), array( 'page' => 'elr-link-edit', 'link_id' => $link_id ) );
 		}
 		if ( ! in_array( $type, array( 301, 302, 303, 307, 308 ), true ) ) {
-			$type = 301;
+			$type = 307;
 		}
 		if ( 'country' === $rule_type ) {
 			$parts = array_filter( array_map( 'trim', explode( ',', strtoupper( $match ) ) ) );

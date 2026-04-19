@@ -163,6 +163,6 @@ class ELR_Redirect {
 	protected static function normalize_status( $code ) {
 		$code    = (int) $code;
 		$allowed = array( 301, 302, 303, 307, 308 );
-		return in_array( $code, $allowed, true ) ? $code : 301;
+		return in_array( $code, $allowed, true ) ? $code : 307;
 	}
 }

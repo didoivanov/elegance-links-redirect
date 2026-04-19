@@ -4,8 +4,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 /** @var array $links */
 /** @var string $home */
+/** @var array $rule_counts */
 
-$search = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+$search      = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+$rule_counts = isset( $rule_counts ) ? (array) $rule_counts : array();
 ?>
 <div class="wrap elr-wrap">
 	<h1 class="wp-heading-inline"><?php esc_html_e( 'Elegance Links', 'elegance-links-redirect' ); ?></h1>
@@ -66,9 +68,24 @@ $search = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) 
 						'elr_delete_link'
 					);
 					?>
+					<?php
+					$rule_n     = isset( $rule_counts[ (int) $link->id ] ) ? (int) $rule_counts[ (int) $link->id ] : 0;
+					$rule_label = sprintf(
+						/* translators: %d: number of active dynamic redirect rules. */
+						_n( '%d dynamic redirect rule', '%d dynamic redirect rules', max( 1, $rule_n ), 'elegance-links-redirect' ),
+						$rule_n
+					);
+					?>
 					<tr>
 						<th scope="row" class="check-column"><input type="checkbox" name="link_ids[]" value="<?php echo (int) $link->id; ?>" /></th>
-						<td><strong><a href="<?php echo esc_url( $edit_url ); ?>"><?php echo esc_html( $link->title ? $link->title : $link->slug ); ?></a></strong></td>
+						<td>
+							<strong><a href="<?php echo esc_url( $edit_url ); ?>"><?php echo esc_html( $link->title ? $link->title : $link->slug ); ?></a></strong>
+							<?php if ( $rule_n > 0 ) : ?>
+								<a class="elr-rule-badge" href="<?php echo esc_url( $edit_url . '#elr-rule-form' ); ?>" title="<?php echo esc_attr( $rule_label ); ?>">
+									<span class="dashicons dashicons-randomize" aria-hidden="true"></span><?php echo (int) $rule_n; ?>
+								</a>
+							<?php endif; ?>
+						</td>
 						<td><a href="<?php echo $pretty; ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $pretty ); ?></a></td>
 						<td class="elr-truncate"><a href="<?php echo esc_url( $link->target_url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $link->target_url ); ?></a></td>
 						<td><?php echo (int) $link->redirect_type; ?></td>

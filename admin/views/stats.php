@@ -10,13 +10,31 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** @var array $daily */
 /** @var int $total */
 /** @var array $countries */
+/** @var array $by_rule */
+/** @var array $link_rules */
+/** @var array $rules_lookup */
+
+$link_rules   = isset( $link_rules ) ? (array) $link_rules : array();
+$rules_lookup = isset( $rules_lookup ) ? (array) $rules_lookup : array();
+$by_rule      = isset( $by_rule ) ? (array) $by_rule : array();
 
 $filters = array(
 	'country'       => isset( $_GET['country'] ) ? sanitize_text_field( wp_unslash( $_GET['country'] ) ) : '',
 	'q'             => isset( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q'] ) ) : '',
 	'with_referrer' => ! empty( $_GET['with_referrer'] ) ? 1 : 0,
+	'rule'          => isset( $_GET['rule'] ) ? sanitize_text_field( wp_unslash( $_GET['rule'] ) ) : '',
 );
-$filter_active = '' !== $filters['country'] || '' !== $filters['q'] || $filters['with_referrer'];
+$filter_active = '' !== $filters['country'] || '' !== $filters['q'] || $filters['with_referrer'] || '' !== $filters['rule'];
+
+$rule_describe = function ( $rule_id, $rule_type, $match_value ) {
+	if ( empty( $rule_id ) ) {
+		return __( 'default', 'elegance-links-redirect' );
+	}
+	if ( '' === $rule_type ) {
+		return sprintf( __( 'deleted rule (#%d)', 'elegance-links-redirect' ), (int) $rule_id );
+	}
+	return $rule_type . ': ' . $match_value;
+};
 
 $max_hits = 0;
 foreach ( (array) $daily as $day ) {
@@ -68,6 +86,25 @@ if ( $link ) {
 			<label>
 				<span class="elr-filter-label"><?php esc_html_e( 'Search', 'elegance-links-redirect' ); ?></span>
 				<input type="search" name="q" value="<?php echo esc_attr( $filters['q'] ); ?>" placeholder="<?php esc_attr_e( 'IP, referrer, browser, OS, city…', 'elegance-links-redirect' ); ?>" />
+			</label>
+			<label>
+				<span class="elr-filter-label"><?php esc_html_e( 'Matched rule', 'elegance-links-redirect' ); ?></span>
+				<select name="rule">
+					<option value=""><?php esc_html_e( 'Any', 'elegance-links-redirect' ); ?></option>
+					<option value="default" <?php selected( $filters['rule'], 'default' ); ?>><?php esc_html_e( 'Default redirect only', 'elegance-links-redirect' ); ?></option>
+					<option value="any_rule" <?php selected( $filters['rule'], 'any_rule' ); ?>><?php esc_html_e( 'Any dynamic rule', 'elegance-links-redirect' ); ?></option>
+					<?php if ( $link && ! empty( $link_rules ) ) : ?>
+						<optgroup label="<?php esc_attr_e( 'Specific rule', 'elegance-links-redirect' ); ?>">
+							<?php foreach ( $link_rules as $lr ) :
+								$val = 'r:' . (int) $lr->id;
+								?>
+								<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $filters['rule'], $val ); ?>>
+									<?php echo esc_html( $lr->rule_type . ': ' . $lr->match_value ); ?>
+								</option>
+							<?php endforeach; ?>
+						</optgroup>
+					<?php endif; ?>
+				</select>
 			</label>
 			<label class="elr-filter-check">
 				<input type="checkbox" name="with_referrer" value="1" <?php checked( $filters['with_referrer'], 1 ); ?> />
@@ -176,6 +213,21 @@ if ( $link ) {
 					</tbody>
 				</table>
 			</div>
+			<div class="elr-stats-card">
+				<h2><?php esc_html_e( 'Matched Rule', 'elegance-links-redirect' ); ?></h2>
+				<table class="widefat striped">
+					<thead><tr><th><?php esc_html_e( 'Rule', 'elegance-links-redirect' ); ?></th><th><?php esc_html_e( 'Hits', 'elegance-links-redirect' ); ?></th></tr></thead>
+					<tbody>
+					<?php if ( empty( $by_rule ) ) : ?>
+						<tr><td colspan="2">—</td></tr>
+					<?php else : foreach ( $by_rule as $row ) :
+						$label = $rule_describe( isset( $row->rule_id ) ? (int) $row->rule_id : 0, (string) $row->rule_type, (string) $row->match_value );
+						?>
+						<tr><td><?php echo esc_html( $label ); ?></td><td><?php echo (int) $row->hits; ?></td></tr>
+					<?php endforeach; endif; ?>
+					</tbody>
+				</table>
+			</div>
 		</div>
 	<?php else : ?>
 		<h2><?php esc_html_e( 'Links', 'elegance-links-redirect' ); ?></h2>
@@ -211,6 +263,7 @@ if ( $link ) {
 			<tr>
 				<th><?php esc_html_e( 'When', 'elegance-links-redirect' ); ?></th>
 				<?php if ( ! $link ) : ?><th><?php esc_html_e( 'Link', 'elegance-links-redirect' ); ?></th><?php endif; ?>
+				<th><?php esc_html_e( 'Rule', 'elegance-links-redirect' ); ?></th>
 				<th><?php esc_html_e( 'IP', 'elegance-links-redirect' ); ?></th>
 				<th><?php esc_html_e( 'Country', 'elegance-links-redirect' ); ?></th>
 				<th><?php esc_html_e( 'Device', 'elegance-links-redirect' ); ?></th>
@@ -221,16 +274,28 @@ if ( $link ) {
 			</tr>
 		</thead>
 		<tbody>
-		<?php if ( empty( $clicks ) ) : ?>
-			<tr><td colspan="<?php echo $link ? 8 : 9; ?>"><?php esc_html_e( 'No clicks match the current filters.', 'elegance-links-redirect' ); ?></td></tr>
+		<?php
+		$colspan = $link ? 9 : 10;
+		if ( empty( $clicks ) ) : ?>
+			<tr><td colspan="<?php echo (int) $colspan; ?>"><?php esc_html_e( 'No clicks match the current filters.', 'elegance-links-redirect' ); ?></td></tr>
 		<?php else : foreach ( $clicks as $click ) :
 			$click_link_id = isset( $click->link_id ) ? (int) $click->link_id : 0;
+			$rule_id       = isset( $click->rule_id ) ? (int) $click->rule_id : 0;
+			$rule_type     = '';
+			$match_value   = '';
+			if ( $rule_id && isset( $rules_lookup[ $rule_id ] ) ) {
+				$rule_type   = (string) $rules_lookup[ $rule_id ]->rule_type;
+				$match_value = (string) $rules_lookup[ $rule_id ]->match_value;
+			}
+			$rule_label = $rule_describe( $rule_id, $rule_type, $match_value );
+			$rule_class = $rule_id ? 'elr-rule-tag elr-rule-tag--' . esc_attr( $rule_type ? $rule_type : 'custom' ) : 'elr-rule-tag elr-rule-tag--default';
 			?>
 			<tr>
 				<td><?php echo esc_html( $click->clicked_at ); ?></td>
 				<?php if ( ! $link ) : ?>
 					<td><a href="<?php echo esc_url( admin_url( 'admin.php?page=elr-link-stats&link_id=' . $click_link_id ) ); ?>">#<?php echo $click_link_id; ?></a></td>
 				<?php endif; ?>
+				<td><span class="<?php echo $rule_class; ?>"><?php echo esc_html( $rule_label ); ?></span></td>
 				<td><?php echo esc_html( $click->ip_address ); ?></td>
 				<td><?php echo esc_html( trim( $click->country_name . ' ' . ( $click->country ? '(' . $click->country . ')' : '' ) ) ); ?></td>
 				<td><?php echo esc_html( $click->device_type ); ?></td>

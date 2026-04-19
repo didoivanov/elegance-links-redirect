@@ -101,6 +101,20 @@ class ELR_Tracker {
 		if ( ! empty( $filters['with_referrer'] ) ) {
 			$where[] = "referrer <> ''";
 		}
+		if ( ! empty( $filters['rule'] ) ) {
+			$rule = (string) $filters['rule'];
+			if ( 'default' === $rule ) {
+				$where[] = 'rule_id IS NULL';
+			} elseif ( 'any_rule' === $rule ) {
+				$where[] = 'rule_id IS NOT NULL';
+			} elseif ( 0 === strpos( $rule, 'r:' ) ) {
+				$rule_id = (int) substr( $rule, 2 );
+				if ( $rule_id > 0 ) {
+					$where[]  = 'rule_id = %d';
+					$values[] = $rule_id;
+				}
+			}
+		}
 		if ( ! empty( $filters['q'] ) ) {
 			$like     = '%' . $wpdb->esc_like( (string) $filters['q'] ) . '%';
 			$where[]  = '(ip_address LIKE %s OR referrer LIKE %s OR browser LIKE %s OR os LIKE %s OR device_type LIKE %s OR country_name LIKE %s OR city LIKE %s OR user_agent LIKE %s OR destination LIKE %s)';
@@ -187,5 +201,58 @@ class ELR_Tracker {
 			'devices'   => (array) $by_device,
 			'browsers'  => (array) $by_browser,
 		);
+	}
+
+	public static function breakdown_by_rule( $filters = array() ) {
+		global $wpdb;
+		list( $where, $values ) = self::build_where( $filters );
+		$clicks_table = ELR_Database::clicks_table();
+		$rules_table  = ELR_Database::rules_table();
+
+		$sql = "SELECT c.rule_id, r.rule_type, r.match_value, COUNT(*) AS hits
+				FROM $clicks_table c
+				LEFT JOIN $rules_table r ON c.rule_id = r.id
+				WHERE $where
+				GROUP BY c.rule_id, r.rule_type, r.match_value
+				ORDER BY hits DESC";
+
+		$rows = empty( $values )
+			? $wpdb->get_results( $sql )
+			: $wpdb->get_results( $wpdb->prepare( $sql, $values ) );
+
+		return (array) $rows;
+	}
+
+	public static function rules_for_ids( $ids ) {
+		global $wpdb;
+		$ids = array_values( array_filter( array_map( 'intval', (array) $ids ) ) );
+		if ( empty( $ids ) ) {
+			return array();
+		}
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT id, link_id, rule_type, match_value FROM ' . ELR_Database::rules_table()
+				. " WHERE id IN ($placeholders)",
+				$ids
+			)
+		);
+		$by_id = array();
+		foreach ( (array) $rows as $r ) {
+			$by_id[ (int) $r->id ] = $r;
+		}
+		return $by_id;
+	}
+
+	public static function active_rule_counts_by_link() {
+		global $wpdb;
+		$rows = $wpdb->get_results(
+			'SELECT link_id, COUNT(*) AS n FROM ' . ELR_Database::rules_table() . ' WHERE is_active = 1 GROUP BY link_id'
+		);
+		$out = array();
+		foreach ( (array) $rows as $r ) {
+			$out[ (int) $r->link_id ] = (int) $r->n;
+		}
+		return $out;
 	}
 }

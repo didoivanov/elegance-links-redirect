@@ -4,7 +4,7 @@ Tags: link cloaking, pretty links, redirect, 301, click tracking, geo redirect, 
 Requires at least: 5.5
 Tested up to: 6.5
 Requires PHP: 7.2
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 License: GPLv2 or later
 
 Cloak ugly URLs behind pretty slugs (like /go or /play), send 301/302/307/308 redirects, branch by country or device, and track every click.
@@ -34,6 +34,11 @@ Features:
 The plugin stores IP addresses and user agent data of visitors who click tracked links. The default geolocation provider is the public ip-api.com service; swap it via the `elr_geo_provider` / `elr_geo_lookup_result` filters if you prefer a self-hosted database.
 
 == Changelog ==
+
+= 1.0.7 =
+* Rule visibility: clicks table now has a "Rule" column, single-link stats gain a "Matched Rule" breakdown card, and the filter bar has a Matched-rule selector (Default only / Any dynamic rule / specific rule).
+* Links list shows a small badge on any link that has active dynamic rules, so you can see at a glance which links branch by country or device.
+* New default redirect type for newly created links and rules is 307 (temporary) instead of 301, so follow-up target changes take effect for return visitors without fighting browser cache.
 
 = 1.0.6 =
 * Slug conflict check now also blocks slugs already in use by Pretty Links (both the prli_links table and the pretty-link custom post type). New elr_slug_conflict filter lets other plugins add their own checks.
