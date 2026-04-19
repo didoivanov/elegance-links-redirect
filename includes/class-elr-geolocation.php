@@ -36,9 +36,13 @@ class ELR_Geolocation {
 		if ( empty( $ip ) || ! filter_var( $ip, FILTER_VALIDATE_IP ) ) {
 			return $empty;
 		}
-
 		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) === false ) {
 			return $empty;
+		}
+
+		$cf = self::lookup_cloudflare();
+		if ( ! empty( $cf['country'] ) ) {
+			return apply_filters( 'elr_geo_lookup_result', $cf, $ip );
 		}
 
 		$cache_key = 'ip_' . md5( $ip );
@@ -51,25 +55,52 @@ class ELR_Geolocation {
 		$result   = $empty;
 
 		if ( 'ip-api' === $provider ) {
-			$response = wp_remote_get(
-				'http://ip-api.com/json/' . rawurlencode( $ip ) . '?fields=status,country,countryCode,city',
-				array( 'timeout' => 3 )
-			);
-			if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
-				$body = json_decode( wp_remote_retrieve_body( $response ), true );
-				if ( is_array( $body ) && isset( $body['status'] ) && 'success' === $body['status'] ) {
-					$result = array(
-						'country'      => isset( $body['countryCode'] ) ? strtoupper( substr( $body['countryCode'], 0, 2 ) ) : '',
-						'country_name' => isset( $body['country'] ) ? (string) $body['country'] : '',
-						'city'         => isset( $body['city'] ) ? (string) $body['city'] : '',
-					);
-				}
-			}
+			$result = self::lookup_ip_api( $ip, $empty );
 		}
 
 		$result = apply_filters( 'elr_geo_lookup_result', $result, $ip );
 		set_transient( 'elr_' . $cache_key, $result, self::CACHE_TTL );
 
 		return $result;
+	}
+
+	protected static function lookup_cloudflare() {
+		if ( empty( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ) {
+			return array();
+		}
+		$code = strtoupper( substr( (string) $_SERVER['HTTP_CF_IPCOUNTRY'], 0, 2 ) );
+		if ( '' === $code || 'XX' === $code || 'T1' === $code ) {
+			return array();
+		}
+
+		$city = '';
+		if ( ! empty( $_SERVER['HTTP_CF_IPCITY'] ) ) {
+			$city = sanitize_text_field( rawurldecode( (string) $_SERVER['HTTP_CF_IPCITY'] ) );
+		}
+
+		return array(
+			'country'      => $code,
+			'country_name' => $code,
+			'city'         => $city,
+		);
+	}
+
+	protected static function lookup_ip_api( $ip, $empty ) {
+		$response = wp_remote_get(
+			'http://ip-api.com/json/' . rawurlencode( $ip ) . '?fields=status,country,countryCode,city',
+			array( 'timeout' => 3 )
+		);
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return $empty;
+		}
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $body ) || ! isset( $body['status'] ) || 'success' !== $body['status'] ) {
+			return $empty;
+		}
+		return array(
+			'country'      => isset( $body['countryCode'] ) ? strtoupper( substr( (string) $body['countryCode'], 0, 2 ) ) : '',
+			'country_name' => isset( $body['country'] ) ? (string) $body['country'] : '',
+			'city'         => isset( $body['city'] ) ? (string) $body['city'] : '',
+		);
 	}
 }

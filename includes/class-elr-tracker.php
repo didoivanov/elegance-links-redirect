@@ -182,7 +182,7 @@ class ELR_Tracker {
 		list( $where, $values ) = self::build_where( $filters );
 		$table = ELR_Database::clicks_table();
 
-		$country_sql = "SELECT country_name, country, COUNT(*) AS hits FROM $table WHERE $where AND country_name <> '' GROUP BY country_name, country ORDER BY hits DESC LIMIT 10";
+		$country_sql = "SELECT country_name, country, COUNT(*) AS hits FROM $table WHERE $where AND country <> '' GROUP BY country_name, country ORDER BY hits DESC LIMIT 10";
 		$device_sql  = "SELECT device_type, COUNT(*) AS hits FROM $table WHERE $where GROUP BY device_type ORDER BY hits DESC";
 		$browser_sql = "SELECT browser, COUNT(*) AS hits FROM $table WHERE $where GROUP BY browser ORDER BY hits DESC";
 

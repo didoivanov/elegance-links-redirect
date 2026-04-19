@@ -4,7 +4,7 @@ Tags: link cloaking, pretty links, redirect, 301, click tracking, geo redirect, 
 Requires at least: 5.5
 Tested up to: 6.5
 Requires PHP: 7.2
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 License: GPLv2 or later
 
 Cloak ugly URLs behind pretty slugs (like /go or /play), send 301/302/307/308 redirects, branch by country or device, and track every click.
@@ -34,6 +34,9 @@ Features:
 The plugin stores IP addresses and user agent data of visitors who click tracked links. The default geolocation provider is the public ip-api.com service; swap it via the `elr_geo_provider` / `elr_geo_lookup_result` filters if you prefer a self-hosted database.
 
 == Changelog ==
+
+= 1.0.8 =
+* Geolocation now prefers Cloudflare's CF-IPCountry header (zero-cost, no API call) and only falls back to ip-api.com if the header is missing or returns an unknown country. Also honours CF-IPCity when available (Cloudflare Enterprise custom-header rules). Stats "Top Countries" grouping no longer requires a country name, so Cloudflare-only visitors appear correctly.
 
 = 1.0.7 =
 * Rule visibility: clicks table now has a "Rule" column, single-link stats gain a "Matched Rule" breakdown card, and the filter bar has a Matched-rule selector (Default only / Any dynamic rule / specific rule).
