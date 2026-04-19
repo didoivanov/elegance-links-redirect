@@ -44,13 +44,14 @@ class ELR_Admin {
 			array( __CLASS__, 'render_edit_page' )
 		);
 		add_submenu_page(
-			null,
+			self::MENU_SLUG,
 			__( 'Link Stats', 'elegance-links-redirect' ),
 			__( 'Link Stats', 'elegance-links-redirect' ),
 			self::CAPABILITY,
 			'elr-link-stats',
 			array( __CLASS__, 'render_stats_page' )
 		);
+		remove_submenu_page( self::MENU_SLUG, 'elr-link-stats' );
 	}
 
 	public static function enqueue_assets( $hook ) {
