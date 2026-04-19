@@ -84,4 +84,108 @@ class ELR_Tracker {
 			'browsers'  => $by_browser,
 		);
 	}
+
+	protected static function build_where( $filters ) {
+		global $wpdb;
+		$where  = array( '1=1' );
+		$values = array();
+
+		if ( ! empty( $filters['link_id'] ) ) {
+			$where[]  = 'link_id = %d';
+			$values[] = (int) $filters['link_id'];
+		}
+		if ( ! empty( $filters['country'] ) ) {
+			$where[]  = 'country = %s';
+			$values[] = strtoupper( substr( (string) $filters['country'], 0, 2 ) );
+		}
+		if ( ! empty( $filters['with_referrer'] ) ) {
+			$where[] = "referrer <> ''";
+		}
+		if ( ! empty( $filters['q'] ) ) {
+			$like     = '%' . $wpdb->esc_like( (string) $filters['q'] ) . '%';
+			$where[]  = '(ip_address LIKE %s OR referrer LIKE %s OR browser LIKE %s OR os LIKE %s OR device_type LIKE %s OR country_name LIKE %s OR city LIKE %s OR user_agent LIKE %s OR destination LIKE %s)';
+			$values[] = $like; $values[] = $like; $values[] = $like; $values[] = $like;
+			$values[] = $like; $values[] = $like; $values[] = $like; $values[] = $like;
+			$values[] = $like;
+		}
+
+		return array( implode( ' AND ', $where ), $values );
+	}
+
+	public static function query_clicks( $filters = array(), $limit = 100 ) {
+		global $wpdb;
+		list( $where, $values ) = self::build_where( $filters );
+		$sql = 'SELECT * FROM ' . ELR_Database::clicks_table() . " WHERE $where ORDER BY clicked_at DESC LIMIT %d";
+		$values[] = max( 1, (int) $limit );
+		return $wpdb->get_results( $wpdb->prepare( $sql, $values ) );
+	}
+
+	public static function count_clicks( $filters = array() ) {
+		global $wpdb;
+		list( $where, $values ) = self::build_where( $filters );
+		$sql = 'SELECT COUNT(*) FROM ' . ELR_Database::clicks_table() . " WHERE $where";
+		return (int) ( empty( $values ) ? $wpdb->get_var( $sql ) : $wpdb->get_var( $wpdb->prepare( $sql, $values ) ) );
+	}
+
+	public static function daily_counts( $filters = array(), $days = 30 ) {
+		global $wpdb;
+		$days = max( 1, min( 365, (int) $days ) );
+
+		$filters['_since'] = gmdate( 'Y-m-d 00:00:00', strtotime( '-' . ( $days - 1 ) . ' days' ) );
+		list( $where, $values ) = self::build_where( $filters );
+		$where   .= ' AND clicked_at >= %s';
+		$values[] = $filters['_since'];
+
+		$sql   = 'SELECT DATE(clicked_at) AS day, COUNT(*) AS hits FROM ' . ELR_Database::clicks_table()
+			. " WHERE $where GROUP BY day ORDER BY day ASC";
+		$rows  = $wpdb->get_results( $wpdb->prepare( $sql, $values ) );
+		$by_day = array();
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $r ) {
+				$by_day[ (string) $r->day ] = (int) $r->hits;
+			}
+		}
+
+		$series = array();
+		for ( $i = $days - 1; $i >= 0; $i-- ) {
+			$day = gmdate( 'Y-m-d', strtotime( '-' . $i . ' days' ) );
+			$series[] = array( 'day' => $day, 'hits' => isset( $by_day[ $day ] ) ? (int) $by_day[ $day ] : 0 );
+		}
+		return $series;
+	}
+
+	public static function distinct_countries( $filters = array() ) {
+		global $wpdb;
+		unset( $filters['country'] );
+		list( $where, $values ) = self::build_where( $filters );
+		$sql = 'SELECT DISTINCT country, country_name FROM ' . ELR_Database::clicks_table()
+			. " WHERE $where AND country <> '' ORDER BY country_name ASC";
+		return empty( $values ) ? $wpdb->get_results( $sql ) : $wpdb->get_results( $wpdb->prepare( $sql, $values ) );
+	}
+
+	public static function summary_filtered( $filters = array() ) {
+		global $wpdb;
+		list( $where, $values ) = self::build_where( $filters );
+		$table = ELR_Database::clicks_table();
+
+		$country_sql = "SELECT country_name, country, COUNT(*) AS hits FROM $table WHERE $where AND country_name <> '' GROUP BY country_name, country ORDER BY hits DESC LIMIT 10";
+		$device_sql  = "SELECT device_type, COUNT(*) AS hits FROM $table WHERE $where GROUP BY device_type ORDER BY hits DESC";
+		$browser_sql = "SELECT browser, COUNT(*) AS hits FROM $table WHERE $where GROUP BY browser ORDER BY hits DESC";
+
+		if ( empty( $values ) ) {
+			$by_country = $wpdb->get_results( $country_sql );
+			$by_device  = $wpdb->get_results( $device_sql );
+			$by_browser = $wpdb->get_results( $browser_sql );
+		} else {
+			$by_country = $wpdb->get_results( $wpdb->prepare( $country_sql, $values ) );
+			$by_device  = $wpdb->get_results( $wpdb->prepare( $device_sql, $values ) );
+			$by_browser = $wpdb->get_results( $wpdb->prepare( $browser_sql, $values ) );
+		}
+
+		return array(
+			'countries' => (array) $by_country,
+			'devices'   => (array) $by_device,
+			'browsers'  => (array) $by_browser,
+		);
+	}
 }

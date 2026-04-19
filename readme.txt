@@ -4,7 +4,7 @@ Tags: link cloaking, pretty links, redirect, 301, click tracking, geo redirect, 
 Requires at least: 5.5
 Tested up to: 6.5
 Requires PHP: 7.2
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: GPLv2 or later
 
 Cloak ugly URLs behind pretty slugs (like /go or /play), send 301/302/307/308 redirects, branch by country or device, and track every click.
@@ -34,6 +34,11 @@ Features:
 The plugin stores IP addresses and user agent data of visitors who click tracked links. The default geolocation provider is the public ip-api.com service; swap it via the `elr_geo_provider` / `elr_geo_lookup_result` filters if you prefer a self-hosted database.
 
 == Changelog ==
+
+= 1.0.4 =
+* Country/device autocomplete now hides already-entered values and clears when switching rule type.
+* Links listing: search bar + bulk-select + mass delete.
+* Stats: clicks-per-day chart, country filter, text search across IP/referrer/browser/OS/city/user agent/destination, and an "Only clicks with referrer" toggle — works on both single-link and all-links views.
 
 = 1.0.3 =
 * Release workflow publishes the tag directly instead of creating a draft release.

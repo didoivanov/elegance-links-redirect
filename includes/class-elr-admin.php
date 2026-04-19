@@ -12,6 +12,7 @@ class ELR_Admin {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
 		add_action( 'admin_post_elr_save_link', array( __CLASS__, 'handle_save_link' ) );
 		add_action( 'admin_post_elr_delete_link', array( __CLASS__, 'handle_delete_link' ) );
+		add_action( 'admin_post_elr_bulk_links', array( __CLASS__, 'handle_bulk_links' ) );
 		add_action( 'admin_post_elr_save_rule', array( __CLASS__, 'handle_save_rule' ) );
 		add_action( 'admin_post_elr_delete_rule', array( __CLASS__, 'handle_delete_rule' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
@@ -81,8 +82,22 @@ class ELR_Admin {
 			return;
 		}
 		global $wpdb;
-		$links = $wpdb->get_results( 'SELECT * FROM ' . ELR_Database::links_table() . ' ORDER BY created_at DESC' );
-		$home  = trailingslashit( home_url() );
+		$search = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+		$table  = ELR_Database::links_table();
+		if ( '' === $search ) {
+			$links = $wpdb->get_results( "SELECT * FROM $table ORDER BY created_at DESC" );
+		} else {
+			$like  = '%' . $wpdb->esc_like( $search ) . '%';
+			$links = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM $table WHERE slug LIKE %s OR title LIKE %s OR target_url LIKE %s ORDER BY created_at DESC",
+					$like,
+					$like,
+					$like
+				)
+			);
+		}
+		$home = trailingslashit( home_url() );
 		include ELR_PLUGIN_DIR . 'admin/views/links-list.php';
 	}
 
@@ -129,8 +144,6 @@ class ELR_Admin {
 		$link_id = isset( $_GET['link_id'] ) ? (int) $_GET['link_id'] : 0;
 		$home    = trailingslashit( home_url() );
 		$link    = null;
-		$clicks  = array();
-		$summary = array( 'countries' => array(), 'devices' => array(), 'browsers' => array() );
 		$links   = array();
 
 		if ( $link_id > 0 ) {
@@ -139,10 +152,20 @@ class ELR_Admin {
 			);
 		}
 
-		if ( $link ) {
-			$clicks  = ELR_Tracker::recent_for_link( $link_id, 100 );
-			$summary = ELR_Tracker::summary_for_link( $link_id );
-		} else {
+		$filters = array(
+			'link_id'       => $link ? (int) $link->id : 0,
+			'country'       => isset( $_GET['country'] ) ? sanitize_text_field( wp_unslash( $_GET['country'] ) ) : '',
+			'q'             => isset( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q'] ) ) : '',
+			'with_referrer' => ! empty( $_GET['with_referrer'] ) ? 1 : 0,
+		);
+
+		$daily     = ELR_Tracker::daily_counts( $filters, 30 );
+		$clicks    = ELR_Tracker::query_clicks( $filters, 100 );
+		$total     = ELR_Tracker::count_clicks( $filters );
+		$countries = ELR_Tracker::distinct_countries( array( 'link_id' => $filters['link_id'] ) );
+		$summary   = ELR_Tracker::summary_filtered( $filters );
+
+		if ( ! $link ) {
 			$links = $wpdb->get_results( 'SELECT * FROM ' . ELR_Database::links_table() . ' ORDER BY hits DESC, created_at DESC' );
 		}
 		include ELR_PLUGIN_DIR . 'admin/views/stats.php';
@@ -229,6 +252,35 @@ class ELR_Admin {
 		ELR_Redirect::rebuild_active_slugs();
 		update_option( 'elr_flush_rewrite', 1 );
 		self::redirect_with_notice( 'success', __( 'Link deleted.', 'elegance-links-redirect' ) );
+	}
+
+	public static function handle_bulk_links() {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'elegance-links-redirect' ) );
+		}
+		check_admin_referer( 'elr_bulk_links' );
+
+		$action = isset( $_POST['bulk_action'] ) ? sanitize_key( wp_unslash( $_POST['bulk_action'] ) ) : '';
+		$ids    = isset( $_POST['link_ids'] ) ? (array) wp_unslash( $_POST['link_ids'] ) : array();
+		$ids    = array_values( array_filter( array_map( 'intval', $ids ) ) );
+
+		if ( 'delete' !== $action || empty( $ids ) ) {
+			self::redirect_with_notice( 'error', __( 'Choose an action and at least one link.', 'elegance-links-redirect' ) );
+		}
+
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . ELR_Database::links_table() . " WHERE id IN ($placeholders)", $ids ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . ELR_Database::rules_table() . " WHERE link_id IN ($placeholders)", $ids ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . ELR_Database::clicks_table() . " WHERE link_id IN ($placeholders)", $ids ) );
+
+		ELR_Redirect::rebuild_active_slugs();
+		update_option( 'elr_flush_rewrite', 1 );
+		self::redirect_with_notice( 'success', sprintf(
+			/* translators: %d: number of deleted links. */
+			_n( '%d link deleted.', '%d links deleted.', count( $ids ), 'elegance-links-redirect' ),
+			count( $ids )
+		) );
 	}
 
 	public static function handle_save_rule() {

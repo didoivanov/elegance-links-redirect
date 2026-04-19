@@ -143,24 +143,35 @@
 		return parts.join(', ');
 	}
 
-	function buildCountrySource(term) {
-		var needle = term.toLowerCase();
-		if (!needle) {
-			return COUNTRIES.slice(0, 15).map(function (c) {
-				return { label: c.name + ' (' + c.code + ')', value: c.code };
-			});
+	function alreadyEntered(value) {
+		var parts = value.split(/,\s*/);
+		parts.pop();
+		var set = {};
+		for (var i = 0; i < parts.length; i++) {
+			var v = (parts[i] || '').trim().toLowerCase();
+			if (v) { set[v] = true; }
 		}
-		return COUNTRIES.filter(function (c) {
+		return set;
+	}
+
+	function buildCountrySource(term, entered) {
+		var needle = term.toLowerCase();
+		var matches = COUNTRIES.filter(function (c) {
+			if (entered[c.code.toLowerCase()]) { return false; }
+			if (!needle) { return true; }
 			return c.code.toLowerCase().indexOf(needle) === 0 ||
 				c.name.toLowerCase().indexOf(needle) !== -1;
-		}).slice(0, 20).map(function (c) {
+		});
+		if (!needle) { matches = matches.slice(0, 15); } else { matches = matches.slice(0, 20); }
+		return matches.map(function (c) {
 			return { label: c.name + ' (' + c.code + ')', value: c.code };
 		});
 	}
 
-	function buildDeviceSource(term) {
+	function buildDeviceSource(term, entered) {
 		var needle = term.toLowerCase();
 		return DEVICES.filter(function (d) {
+			if (entered[d]) { return false; }
 			return !needle || d.indexOf(needle) === 0;
 		}).map(function (d) {
 			return { label: d, value: d };
@@ -188,11 +199,12 @@
 		$input.autocomplete({
 			minLength: 0,
 			source: function (request, response) {
-				var term = lastTerm(request.term);
+				var term    = lastTerm(request.term);
+				var entered = alreadyEntered(request.term);
 				if (currentMode() === 'device') {
-					response(buildDeviceSource(term));
+					response(buildDeviceSource(term, entered));
 				} else {
-					response(buildCountrySource(term));
+					response(buildCountrySource(term, entered));
 				}
 			},
 			focus: function () {
@@ -209,7 +221,11 @@
 			$(this).autocomplete('search', lastTerm(this.value));
 		});
 
-		$type.on('change', refreshHint);
+		$type.on('change', function () {
+			$input.autocomplete('close');
+			$input.val('');
+			refreshHint();
+		});
 		refreshHint();
 	});
 })(jQuery);
