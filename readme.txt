@@ -4,7 +4,7 @@ Tags: link cloaking, pretty links, redirect, 301, click tracking, geo redirect, 
 Requires at least: 5.5
 Tested up to: 6.5
 Requires PHP: 7.2
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 
 Cloak ugly URLs behind pretty slugs (like /go or /play), send 301/302/307/308 redirects, branch by country or device, and track every click.
@@ -34,6 +34,14 @@ Features:
 The plugin stores IP addresses and user agent data of visitors who click tracked links. The default geolocation provider is the public ip-api.com service; swap it via the `elr_geo_provider` / `elr_geo_lookup_result` filters if you prefer a self-hosted database.
 
 == Changelog ==
+
+= 1.0.1 =
+* Fix fatal deprecation chain on every wp-admin page on PHP 8 / WP 6.9 (add_submenu_page was being called with null parent).
+* Reject slugs that collide with WP reserved paths, existing posts/pages/CPTs, taxonomy terms, or author nicenames.
+* Register a dedicated rewrite rule per active slug instead of a catch-all, so ELR no longer intercepts unrelated URLs such as /wp-json or sitemaps.
+* Link Stats menu now works when clicked directly and shows an overview of all links with hit counts.
+* Edit an existing dynamic redirect rule from the rules table (previously delete-only).
+* Country/device autocomplete on the rule Match Value field (ISO 3166-1 alpha-2 codes and desktop/mobile/tablet/bot).
 
 = 1.0.0 =
 * Initial release.
