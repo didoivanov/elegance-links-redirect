@@ -20,6 +20,7 @@ class ELR_Plugin {
 
 		if ( is_admin() ) {
 			ELR_Admin::boot();
+			ELR_Updater::boot();
 		}
 	}
 
