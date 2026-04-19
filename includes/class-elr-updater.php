@@ -24,16 +24,9 @@ class ELR_Updater {
 		return dirname( self::plugin_basename() );
 	}
 
-	public static function get_latest_release( $force = false ) {
-		if ( ! $force ) {
-			$cached = get_site_transient( self::CACHE_KEY );
-			if ( false !== $cached ) {
-				return is_array( $cached ) ? $cached : null;
-			}
-		}
-
-		$response = wp_remote_get(
-			'https://api.github.com/repos/' . self::GITHUB_OWNER . '/' . self::GITHUB_REPO . '/releases/latest',
+	protected static function github_get( $path ) {
+		return wp_remote_get(
+			'https://api.github.com/repos/' . self::GITHUB_OWNER . '/' . self::GITHUB_REPO . $path,
 			array(
 				'timeout' => 10,
 				'headers' => array(
@@ -42,27 +35,83 @@ class ELR_Updater {
 				),
 			)
 		);
+	}
 
-		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+	public static function get_latest_release( $force = false ) {
+		if ( ! $force ) {
+			$cached = get_site_transient( self::CACHE_KEY );
+			if ( false !== $cached ) {
+				return is_array( $cached ) && ! empty( $cached ) ? $cached : null;
+			}
+		}
+
+		$best = self::pick_latest_tag();
+		if ( ! $best ) {
 			set_site_transient( self::CACHE_KEY, array(), 15 * MINUTE_IN_SECONDS );
 			return null;
 		}
 
-		$data = json_decode( wp_remote_retrieve_body( $response ), true );
-		if ( ! is_array( $data ) || empty( $data['tag_name'] ) ) {
-			set_site_transient( self::CACHE_KEY, array(), 15 * MINUTE_IN_SECONDS );
-			return null;
+		$release_body = '';
+		$assets       = array();
+		$release_resp = self::github_get( '/releases/tags/' . rawurlencode( $best['tag'] ) );
+		if ( ! is_wp_error( $release_resp ) && 200 === (int) wp_remote_retrieve_response_code( $release_resp ) ) {
+			$release = json_decode( wp_remote_retrieve_body( $release_resp ), true );
+			if ( is_array( $release ) ) {
+				$release_body = ! empty( $release['body'] ) ? (string) $release['body'] : '';
+				$assets       = ! empty( $release['assets'] ) && is_array( $release['assets'] ) ? $release['assets'] : array();
+			}
 		}
+
+		$data = array(
+			'tag_name'     => $best['tag'],
+			'version'      => $best['version'],
+			'zipball_url'  => 'https://api.github.com/repos/' . self::GITHUB_OWNER . '/' . self::GITHUB_REPO . '/zipball/refs/tags/' . rawurlencode( $best['tag'] ),
+			'body'         => $release_body,
+			'assets'       => $assets,
+		);
 
 		set_site_transient( self::CACHE_KEY, $data, self::CACHE_TTL );
 		return $data;
 	}
 
+	protected static function pick_latest_tag() {
+		$resp = self::github_get( '/tags?per_page=100' );
+		if ( is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
+			return null;
+		}
+		$tags = json_decode( wp_remote_retrieve_body( $resp ), true );
+		if ( ! is_array( $tags ) ) {
+			return null;
+		}
+
+		$best = null;
+		foreach ( $tags as $tag ) {
+			if ( empty( $tag['name'] ) ) {
+				continue;
+			}
+			$name    = (string) $tag['name'];
+			$version = ltrim( $name, 'vV' );
+			if ( ! preg_match( '/^\d+\.\d+(\.\d+)?/', $version ) ) {
+				continue;
+			}
+			if ( ! $best || version_compare( $version, $best['version'], '>' ) ) {
+				$best = array( 'tag' => $name, 'version' => $version );
+			}
+		}
+		return $best;
+	}
+
 	protected static function remote_version( $release ) {
-		if ( ! is_array( $release ) || empty( $release['tag_name'] ) ) {
+		if ( ! is_array( $release ) ) {
 			return '';
 		}
-		return ltrim( (string) $release['tag_name'], 'vV' );
+		if ( ! empty( $release['version'] ) ) {
+			return (string) $release['version'];
+		}
+		if ( ! empty( $release['tag_name'] ) ) {
+			return ltrim( (string) $release['tag_name'], 'vV' );
+		}
+		return '';
 	}
 
 	protected static function download_url( $release ) {
