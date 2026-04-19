@@ -12,8 +12,11 @@ class ELR_Updater {
 
 	public static function boot() {
 		add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject_update' ) );
+		add_filter( 'site_transient_update_plugins', array( __CLASS__, 'inject_update' ) );
 		add_filter( 'plugins_api', array( __CLASS__, 'plugin_info' ), 10, 3 );
 		add_filter( 'upgrader_source_selection', array( __CLASS__, 'fix_source_dir' ), 10, 4 );
+		add_filter( 'plugin_row_meta', array( __CLASS__, 'plugin_row_meta' ), 10, 2 );
+		add_action( 'admin_post_elr_check_updates', array( __CLASS__, 'handle_check_updates' ) );
 	}
 
 	public static function plugin_basename() {
@@ -129,8 +132,14 @@ class ELR_Updater {
 	}
 
 	public static function inject_update( $transient ) {
-		if ( ! is_object( $transient ) || empty( $transient->checked ) ) {
-			return $transient;
+		if ( ! is_object( $transient ) ) {
+			$transient = new stdClass();
+		}
+		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
+			$transient->response = array();
+		}
+		if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) {
+			$transient->no_update = array();
 		}
 
 		$release = self::get_latest_release();
@@ -139,7 +148,7 @@ class ELR_Updater {
 		}
 
 		$remote = self::remote_version( $release );
-		if ( '' === $remote || version_compare( $remote, ELR_VERSION, '<=' ) ) {
+		if ( '' === $remote ) {
 			return $transient;
 		}
 
@@ -159,7 +168,14 @@ class ELR_Updater {
 			'compatibility' => new stdClass(),
 		);
 
-		$transient->response[ $file ] = $info;
+		if ( version_compare( $remote, ELR_VERSION, '>' ) ) {
+			$transient->response[ $file ] = $info;
+			unset( $transient->no_update[ $file ] );
+		} else {
+			$transient->no_update[ $file ] = $info;
+			unset( $transient->response[ $file ] );
+		}
+
 		return $transient;
 	}
 
@@ -221,5 +237,35 @@ class ELR_Updater {
 			return $source;
 		}
 		return $desired;
+	}
+
+	public static function plugin_row_meta( $links, $file ) {
+		if ( $file !== self::plugin_basename() ) {
+			return $links;
+		}
+		$url     = wp_nonce_url(
+			add_query_arg( 'action', 'elr_check_updates', admin_url( 'admin-post.php' ) ),
+			'elr_check_updates'
+		);
+		$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Check for updates', 'elegance-links-redirect' ) . '</a>';
+		return $links;
+	}
+
+	public static function handle_check_updates() {
+		if ( ! current_user_can( 'update_plugins' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'elegance-links-redirect' ) );
+		}
+		check_admin_referer( 'elr_check_updates' );
+
+		delete_site_transient( self::CACHE_KEY );
+		delete_site_transient( 'update_plugins' );
+		if ( function_exists( 'wp_update_plugins' ) ) {
+			wp_update_plugins();
+		}
+
+		$referer  = wp_get_referer();
+		$redirect = $referer ? $referer : admin_url( 'plugins.php' );
+		wp_safe_redirect( $redirect );
+		exit;
 	}
 }
