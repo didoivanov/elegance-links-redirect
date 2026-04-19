@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/didoivanov/elegance-links-redirect
  * Update URI:  https://github.com/didoivanov/elegance-links-redirect
  * Description: Create cloaked pretty links (e.g. /go, /play), redirect with configurable 301/302/307 codes, apply dynamic rules based on visitor country and device, and track every click.
- * Version:     1.0.2
+ * Version:     1.0.3
  * Author:      didoivanov
  * License:     GPL-2.0-or-later
  * Text Domain: elegance-links-redirect
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ELR_VERSION', '1.0.2' );
+define( 'ELR_VERSION', '1.0.3' );
 define( 'ELR_PLUGIN_FILE', __FILE__ );
 define( 'ELR_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ELR_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
