@@ -420,6 +420,44 @@ class ELR_Admin {
 			);
 		}
 
+		$pretty_links = self::find_pretty_links_conflict( $slug );
+		if ( '' !== $pretty_links ) {
+			return $pretty_links;
+		}
+
+		return (string) apply_filters( 'elr_slug_conflict', '', $slug );
+	}
+
+	protected static function find_pretty_links_conflict( $slug ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'prli_links';
+
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table ) {
+			$row = $wpdb->get_row(
+				$wpdb->prepare( "SELECT name, slug FROM $table WHERE slug = %s LIMIT 1", $slug )
+			);
+			if ( $row ) {
+				return sprintf(
+					/* translators: 1: slug, 2: Pretty Links entry name or slug. */
+					__( 'The slug "%1$s" is already used by Pretty Links ("%2$s").', 'elegance-links-redirect' ),
+					$slug,
+					$row->name ? $row->name : $row->slug
+				);
+			}
+		}
+
+		if ( post_type_exists( 'pretty-link' ) ) {
+			$post = get_page_by_path( $slug, OBJECT, 'pretty-link' );
+			if ( $post ) {
+				return sprintf(
+					/* translators: 1: slug, 2: pretty link title. */
+					__( 'The slug "%1$s" is already used by a Pretty Links entry ("%2$s").', 'elegance-links-redirect' ),
+					$slug,
+					$post->post_title
+				);
+			}
+		}
+
 		return '';
 	}
 
